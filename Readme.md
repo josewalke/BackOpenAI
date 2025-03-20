@@ -1,23 +1,3 @@
-# 🚀 Backend del Proyecto
-
-Este es el backend del proyecto, desarrollado con **Node.js** y **Express.js**. Proporciona la API y la lógica necesaria para el funcionamiento del sistema.
-
-## 📂 Estructura del Proyecto
-```
-📁 backend/
- ├── 📂 src/             # Código fuente principal
- │   ├── 📂 routes/      # Definición de rutas
- │   ├── 📂 controllers/ # Controladores de lógica de negocio
- │   ├── 📂 models/      # Modelos de la base de datos
- │   ├── 📂 middleware/  # Middlewares personalizados
- │   ├── server.js       # Archivo principal del servidor
- ├── .env.example        # Variables de entorno de ejemplo
- ├── .gitignore          # Archivos ignorados por Git
- ├── package.json        # Dependencias y scripts de Node.js
- ├── README.md           # Documentación del proyecto
-```
-
----
 
 ## 🛠️ **Requisitos**
 Antes de empezar, asegúrate de tener instalado:
