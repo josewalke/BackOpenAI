@@ -10,70 +10,87 @@ app.use(cors());
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const ASSISTANT_ID = process.env.ASSISTANT_ID;
 
-if (!OPENAI_API_KEY) {
-  console.error("❌ ERROR: La API Key de OpenAI no está definida en .env");
+if (!OPENAI_API_KEY || !ASSISTANT_ID) {
+  console.error("❌ Asegúrate de tener OPENAI_API_KEY y ASSISTANT_ID en el .env");
   process.exit(1);
 }
 
-console.log("✅ OpenAI API Key cargada correctamente");
+console.log("✅ API Key y Assistant ID cargados");
 
-const openai = new OpenAI({
-  apiKey: OPENAI_API_KEY,
-});
+const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
 app.post("/chat", async (req, res) => {
   try {
     const { message } = req.body;
-    console.log("🔵 Recibido mensaje del usuario:", message);
+    console.log("🟦 Mensaje recibido del usuario:", message);
 
-    // Crear thread
+    // Crear hilo
     const thread = await openai.beta.threads.create();
-    console.log("✅ Thread creado:", thread.id);
+    console.log("🧵 Thread creado:", thread.id);
 
-    // Enviar mensaje al thread
+    // Agregar mensaje del usuario al thread
     await openai.beta.threads.messages.create(thread.id, {
       role: "user",
       content: message,
     });
-    console.log("✅ Mensaje enviado al hilo");
 
-    // Iniciar ejecución con stream
+    // Lanzar run con stream
     const run = await openai.beta.threads.runs.create(thread.id, {
       assistant_id: ASSISTANT_ID,
       stream: true,
     });
 
-    console.log("🚀 Asistente ejecutándose...");
+    console.log("⚙️ Ejecutando asistente...");
 
-    // Configurar headers para SSE (streaming)
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
 
-    // Procesar cada chunk del stream
+    let buffer = ""; // Acumulador de texto
+
     for await (const chunk of run) {
+      console.log("📦 Chunk recibido:", JSON.stringify(chunk, null, 2));
+
       if (chunk.event === "thread.message.delta" && chunk.data?.delta?.content) {
         const parts = chunk.data.delta.content;
-    
+
         for (const part of parts) {
           const text = part?.text?.value || part?.text || "";
-          if (text) {
-            // ⛔ No hacemos .trim(), ni añadimos nada
-            res.write(`data: ${text}\n\n`);
-            console.log("📩 Enviando al frontend:", JSON.stringify(text));
+          if (!text) continue;
+
+          console.log("🧩 Fragmento recibido:", JSON.stringify(text));
+
+          buffer += text;
+
+          // Enviar palabra completa si hay espacio (conserva el espacio)
+          const words = buffer.split(/(?<= )/); // divide y mantiene el espacio
+
+          while (words.length > 1) {
+            const word = words.shift();
+            res.write(`data: ${word}\n\n`);
+            console.log("📤 Palabra enviada:", JSON.stringify(word));
           }
+
+          buffer = words[0] || "";
         }
       }
     }
-    
+
+    // Enviar lo que quedó en buffer al final
+    if (buffer.trim()) {
+      res.write(`data: ${buffer}\n\n`);
+      console.log("📤 Última palabra enviada:", JSON.stringify(buffer));
+    }
+
     res.write("data: [DONE]\n\n");
     res.end();
   } catch (error) {
-    console.error("❌ Error en el backend:", error);
-    res.status(500).json({ error: "Error al procesar la solicitud" });
+    console.error("❌ Error en /chat:", error);
+    res.status(500).json({ error: "Ocurrió un error al procesar el mensaje." });
   }
 });
 
-// Iniciar servidor
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Backend corriendo en http://localhost:${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor backend en http://localhost:${PORT}`);
+});
